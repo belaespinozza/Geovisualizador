@@ -7,8 +7,7 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
   :root{
@@ -24,7 +23,7 @@
     --text-dim:#5B6663;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;height:100%;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:var(--sand);}
+  html,body{margin:0;padding:0;height:100%;font-family:'Open Sans',sans-serif;color:var(--ink);background:var(--sand);}
 
   header{
     background:var(--ink);
@@ -38,7 +37,7 @@
     border-bottom:3px solid var(--coral);
   }
   header .title-block h1{
-    font-family:'Fraunces',serif;
+    font-family:'Urbanist',sans-serif;
     font-weight:600;
     font-size:1.5rem;
     margin:0;
@@ -72,7 +71,7 @@
     padding:20px 18px 40px;
   }
   #sidebar h2{
-    font-family:'Fraunces',serif;
+    font-family:'Urbanist',sans-serif;
     font-size:0.95rem;
     font-weight:600;
     margin:22px 0 10px;
@@ -106,7 +105,7 @@
     margin-bottom:8px;
   }
   .stat-card .num{
-    font-family:'Fraunces',serif;
+    font-family:'Urbanist',sans-serif;
     font-size:1.4rem;
     font-weight:600;
     color:var(--mangle);
@@ -122,11 +121,11 @@
 
   .leaflet-popup-content-wrapper{
     border-radius:8px;
-    font-family:'IBM Plex Sans',sans-serif;
+    font-family:'Open Sans',sans-serif;
   }
   .popup-card h3{
     margin:0 0 6px;
-    font-family:'Fraunces',serif;
+    font-family:'Urbanist',sans-serif;
     font-size:1rem;
     color:var(--ink);
     border-bottom:2px solid var(--coral);
@@ -148,7 +147,7 @@
   }
   .legend-box strong{
     display:block;
-    font-family:'Fraunces',serif;
+    font-family:'Urbanist',sans-serif;
     font-size:0.8rem;
     margin-bottom:4px;
   }
@@ -217,7 +216,7 @@
 
     <h2>Contexto regional</h2>
     <div class="layer-item"><input type="checkbox" id="chk-topo"><span class="swatch" style="background:#B8A97A"></span>Mapa topográfico IGM</div>
-    <p style="font-size:0.7rem;color:var(--text-dim);margin:4px 2px 0;">Cartografía base de referencia (Machala–El Guabo–Pasaje). Archivo pesado: puede tardar en cargar.</p>
+    <p style="font-size:0.7rem;color:var(--text-dim);margin:4px 2px 0;">Cartografía base de referencia (Machala–El Guabo–Pasaje).</p>
 
   </aside>
 
@@ -264,8 +263,8 @@ function normUso(raw) {
 }
 
 const USO_COLORS = {
-  residencial:            { color:'#ffda9e', label:'Residencial' },
-  comercial:              { color:'#C0392B', label:'Comercial' },
+  residencial:            { color:'#f9d99a', label:'Residencial' },
+  comercial:              { color:'#fa5f49', label:'Comercial' },
   salud:                  { color:'#8E44AD', label:'Centro de salud' },
   educacion:              { color:'#2E7DAF', label:'Educación' },
   area_verde:             { color:'#77dd77', label:'Área verde' },
@@ -333,7 +332,7 @@ loadGeoJSON('data/red_vial.geojson', data => {
     style: f => {
       const tipo = (f.properties.tipo_via || '').toLowerCase();
       const principal = tipo.includes('princi');
-      return { color: '#4A4A44', weight: principal ? 4 : 2, opacity: 0.85 };
+      return { color: '#9b9b9b', weight: principal ? 4 : 2, opacity: 0.85 };
     },
     onEachFeature: (f, l) => {
       const p = f.properties;
@@ -351,7 +350,7 @@ loadGeoJSON('data/red_vial.geojson', data => {
 // ---------- Hidrografía ----------
 loadGeoJSON('data/hidrografia.geojson', data => {
   const layer = L.geoJSON(data, {
-    style: { color: '#2E7DAF', weight: 4, dashArray: '2 4' },
+    style: { color: '#5086c1', weight: 4, dashArray: '2 4' },
     onEachFeature: (f, l) => {
       const p = f.properties;
       l.bindPopup(popupCard('Hidrografía', [
@@ -402,7 +401,7 @@ loadGeoJSON('data/areas_verdes.geojson', data => {
 // ---------- Riesgo de inundación (off by default) ----------
 loadGeoJSON('data/lotes_riesgo_inundacion.geojson', data => {
   const layer = L.geoJSON(data, {
-    style: { color: '#B23A16', weight: 1.5, fillColor: '#E4572E', fillOpacity: 0.5 },
+    style: { color: '#f9a59a', weight: 1.5, fillColor: '#E4572E', fillOpacity: 0.5 },
     onEachFeature: (f, l) => {
       const p = f.properties;
       l.bindPopup(popupCard('Lote en riesgo de inundación', [
