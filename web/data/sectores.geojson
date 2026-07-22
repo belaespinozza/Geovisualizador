@@ -1,0 +1,74 @@
+{
+  "type": "FeatureCollection",
+  "_nota": "DATOS DE EJEMPLO — reemplazar con el sectores.geojson real que exporte QGIS una vez calculados los indicadores por sector.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Sector Norte",
+        "area_ha": 31.21,
+        "poblacion_estimada": 2890,
+        "educ_pct": 93.3,
+        "educ_manzanas_servidas": 28,
+        "educ_manzanas_total": 30,
+        "educ_poblacion_cubierta": 2720,
+        "educ_poblacion_pct": 94.1,
+        "salud_pct": 100,
+        "salud_manzanas_servidas": 30,
+        "salud_manzanas_total": 30,
+        "salud_poblacion_pct": 100,
+        "area_verde_m2_hab": 5.61,
+        "area_verde_m2": 16200,
+        "deficit_m2": 9810,
+        "deficit_ha": 0.98,
+        "riesgo_manzanas": 6,
+        "riesgo_superficie_m2": 48600,
+        "riesgo_poblacion": 680
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-79.95521753184566, -3.2475],
+          [-79.94449439706607, -3.2475],
+          [-79.94449439706607, -3.243083744765617],
+          [-79.95521753184566, -3.243083744765617],
+          [-79.95521753184566, -3.2475]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Sector Sur",
+        "area_ha": 27.85,
+        "poblacion_estimada": 3140,
+        "educ_pct": 71.4,
+        "educ_manzanas_servidas": 20,
+        "educ_manzanas_total": 28,
+        "educ_poblacion_cubierta": 2050,
+        "educ_poblacion_pct": 65.3,
+        "salud_pct": 82.1,
+        "salud_manzanas_servidas": 23,
+        "salud_manzanas_total": 28,
+        "salud_poblacion_pct": 79.6,
+        "area_verde_m2_hab": 3.2,
+        "area_verde_m2": 10050,
+        "deficit_m2": 18210,
+        "deficit_ha": 1.82,
+        "riesgo_manzanas": 11,
+        "riesgo_superficie_m2": 71300,
+        "riesgo_poblacion": 1240
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-79.95521753184566, -3.2519718027798152],
+          [-79.94449439706607, -3.2519718027798152],
+          [-79.94449439706607, -3.2475],
+          [-79.95521753184566, -3.2475],
+          [-79.95521753184566, -3.2519718027798152]
+        ]]
+      }
+    }
+  ]
+}

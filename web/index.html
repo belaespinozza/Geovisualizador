@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geovisualizador Urbano de Machala</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0F2A2E;
+    --ink-soft:#1B3E3F;
+    --sand:#F6F2E9;
+    --paper:#FFFFFF;
+    --mangle:#3F6B4F;
+    --mangle-light:#7FA687;
+    --coral:#E4572E;
+    --coral-soft:#F3B9A4;
+    --line:#DCD5C4;
+    --text-dim:#5B6663;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:var(--sand);}
+
+  header{
+    background:var(--ink);
+    color:var(--sand);
+    padding:18px 28px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+    border-bottom:3px solid var(--coral);
+  }
+  header .title-block h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:1.5rem;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  header .title-block p{
+    margin:2px 0 0;
+    font-size:0.8rem;
+    color:#B9C9C3;
+    font-family:'IBM Plex Mono',monospace;
+    letter-spacing:0.5px;
+  }
+  header .meta{
+    font-size:0.75rem;
+    color:#B9C9C3;
+    text-align:right;
+    line-height:1.5;
+  }
+
+  #app{
+    display:flex;
+    height:calc(100vh - 68px);
+  }
+
+  #sidebar{
+    width:300px;
+    min-width:300px;
+    background:var(--paper);
+    border-right:1px solid var(--line);
+    overflow-y:auto;
+    padding:20px 18px 40px;
+  }
+  #sidebar h2{
+    font-family:'Fraunces',serif;
+    font-size:0.95rem;
+    font-weight:600;
+    margin:22px 0 10px;
+    color:var(--ink-soft);
+    border-bottom:1px solid var(--line);
+    padding-bottom:6px;
+  }
+  #sidebar h2:first-of-type{margin-top:0;}
+
+  .layer-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:7px 6px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  .layer-item:hover{background:var(--sand);}
+  .layer-item input{accent-color:var(--mangle);width:16px;height:16px;cursor:pointer;}
+  .swatch{
+    width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid rgba(0,0,0,0.15);
+  }
+  .swatch.line{border-radius:0;height:3px;align-self:center;border:none;}
+
+  .stat-card{
+    background:var(--sand);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:8px;
+  }
+  .stat-card .num{
+    font-family:'Fraunces',serif;
+    font-size:1.4rem;
+    font-weight:600;
+    color:var(--mangle);
+  }
+  .stat-card .lbl{
+    font-size:0.72rem;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+
+  #map{flex:1;height:100%;}
+
+  .leaflet-popup-content-wrapper{
+    border-radius:8px;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .popup-card h3{
+    margin:0 0 6px;
+    font-family:'Fraunces',serif;
+    font-size:1rem;
+    color:var(--ink);
+    border-bottom:2px solid var(--coral);
+    padding-bottom:4px;
+  }
+  .popup-card table{border-collapse:collapse;font-size:0.8rem;}
+  .popup-card td{padding:2px 6px 2px 0;vertical-align:top;}
+  .popup-card td.k{color:var(--text-dim);white-space:nowrap;}
+  .popup-card td.v{font-weight:500;}
+
+  .legend-box{
+    background:rgba(255,255,255,0.95);
+    padding:10px 14px;
+    border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.15);
+    font-size:0.75rem;
+    line-height:1.6;
+    max-width:180px;
+  }
+  .legend-box strong{
+    display:block;
+    font-family:'Fraunces',serif;
+    font-size:0.8rem;
+    margin-bottom:4px;
+  }
+  .legend-row{display:flex;align-items:center;gap:6px;}
+  .legend-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+
+  footer{
+    background:var(--ink);
+    color:#8FA39D;
+    font-size:0.7rem;
+    text-align:center;
+    padding:6px;
+  }
+
+  @media (max-width:720px){
+    #app{flex-direction:column;height:auto;}
+    #sidebar{width:100%;min-width:0;max-height:40vh;}
+    #map{height:60vh;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <h1>Geovisualizador Urbano de Machala</h1>
+    <p>USO DE SUELO · RIESGO · EQUIPAMIENTOS — PROYECTO STEAM</p>
+  </div>
+  <div class="meta">
+    Proyección de origen: UTM 17S / WGS84 (EPSG:32717)<br>
+    Publicado en la web: WGS84 (EPSG:4326)
+  </div>
+</header>
+
+<div id="app">
+  <aside id="sidebar">
+
+    <h2>Indicadores</h2>
+    <div class="stat-card">
+      <div class="num" id="stat-lotes">—</div>
+      <div class="lbl">Lotes mapeados</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-hab">—</div>
+      <div class="lbl">Habitantes estimados</div>
+    </div>
+
+    <h2>Uso de suelo</h2>
+    <div id="uso-suelo-legend"></div>
+
+    <h2>Infraestructura</h2>
+    <div class="layer-item"><input type="checkbox" id="chk-vial" checked><span class="swatch line" style="background:#555"></span>Red vial</div>
+    <div class="layer-item"><input type="checkbox" id="chk-hidro" checked><span class="swatch line" style="background:#2E7DAF"></span>Hidrografía (esteros)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-equip" checked><span class="swatch" style="background:#8E44AD;border-radius:50%"></span>Equipamientos</div>
+    <div class="layer-item"><input type="checkbox" id="chk-verde" checked><span class="swatch" style="background:#3F6B4F"></span>Áreas verdes</div>
+
+    <h2>Riesgo y cobertura</h2>
+    <div class="layer-item"><input type="checkbox" id="chk-riesgo"><span class="swatch" style="background:#E4572E"></span>Lotes en riesgo de inundación</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-inund"><span class="swatch" style="background:#F3B9A4"></span>Buffer zona inundable</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-salud"><span class="swatch" style="background:#9BD3C6"></span>Buffer salud (1000 m)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-edu"><span class="swatch" style="background:#B7C9F2"></span>Buffer educación (500 m)</div>
+
+    <h2>Mapa base</h2>
+    <div class="layer-item"><input type="radio" name="base" id="base-osm" checked>Calles (OSM)</div>
+    <div class="layer-item"><input type="radio" name="base" id="base-sat">Satélite</div>
+
+  </aside>
+
+  <div id="map"></div>
+</div>
+
+<footer>
+  Datos: parcelas catastrales GAD Municipal de Machala (2023) · Elaborado como parte del proyecto STEAM "Geovisualizador Urbano de Machala"
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+// ---------- Base map ----------
+const map = L.map('map', { zoomControl: false }).setView([-3.2478, -79.9552], 16);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(map);
+
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 20
+}).addTo(map);
+
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles © Esri', maxZoom: 20
+});
+
+document.getElementById('base-osm').addEventListener('change', () => { map.removeLayer(sat); map.addLayer(osm); });
+document.getElementById('base-sat').addEventListener('change', () => { map.removeLayer(osm); map.addLayer(sat); });
+
+// ---------- Color scheme: uso de suelo (normalizado) ----------
+// Nota: los datos originales traen inconsistencias de captura (mayúsculas, tildes,
+// espacios). Se normalizan aquí para que la simbología no se fragmente; lo ideal
+// es corregir el campo "uso" en el GeoPackage de origen antes de la entrega final.
+function normUso(raw) {
+  if (!raw) return 'sin_dato';
+  const t = raw.trim().toLowerCase();
+  if (t.includes('residenc')) return 'residencial';
+  if (t.includes('comerc')) return 'comercial';
+  if (t.includes('salud')) return 'salud';
+  if (t.includes('educac')) return 'educacion';
+  if (t.includes('area verde') || t.includes('área verde')) return 'area_verde';
+  if (t.includes('servicio')) return 'servicio_comunitario';
+  if (t.includes('baldio') || t.includes('baldío')) return 'lote_baldio';
+  return 'sin_dato';
+}
+
+const USO_COLORS = {
+  residencial:            { color:'#D9A441', label:'Residencial' },
+  comercial:              { color:'#C0392B', label:'Comercial' },
+  salud:                  { color:'#8E44AD', label:'Centro de salud' },
+  educacion:              { color:'#2E7DAF', label:'Educación' },
+  area_verde:             { color:'#3F6B4F', label:'Área verde' },
+  servicio_comunitario:   { color:'#E4A11B', label:'Servicio comunitario' },
+  lote_baldio:            { color:'#9C9C94', label:'Lote baldío' },
+  sin_dato:               { color:'#CFCABB', label:'Sin dato' }
+};
+
+// Build legend
+const legendDiv = document.getElementById('uso-suelo-legend');
+Object.values(USO_COLORS).forEach(v => {
+  const row = document.createElement('div');
+  row.className = 'layer-item';
+  row.innerHTML = `<span class="swatch" style="background:${v.color}"></span>${v.label}`;
+  legendDiv.appendChild(row);
+});
+
+// ---------- Helpers ----------
+function popupCard(title, rows) {
+  let html = `<div class="popup-card"><h3>${title}</h3><table>`;
+  rows.forEach(([k, v]) => {
+    if (v === null || v === undefined || v === '') return;
+    html += `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;
+  });
+  html += `</table></div>`;
+  return html;
+}
+function fmtNum(n) {
+  if (n === null || n === undefined) return null;
+  return Math.round(n * 100) / 100;
+}
+
+const layers = {}; // registry
+
+function loadGeoJSON(path, buildLayer) {
+  return fetch(path).then(r => r.json()).then(data => buildLayer(data));
+}
+
+// ---------- Uso de suelo (lotes_urbanos) ----------
+loadGeoJSON('data/lotes_urbanos.geojson', data => {
+  let totalHab = 0;
+  const layer = L.geoJSON(data, {
+    style: f => {
+      const key = normUso(f.properties.uso);
+      return { color: '#3a3a34', weight: 1, fillColor: USO_COLORS[key].color, fillOpacity: 0.65 };
+    },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      totalHab += Number(p.n_habitantes) || 0;
+      l.bindPopup(popupCard('Lote urbano', [
+        ['Manzana', p.manzana],
+        ['Uso de suelo', p.uso],
+        ['Habitantes', p.n_habitantes]
+      ]));
+    }
+  }).addTo(map);
+  layers.lotes = layer;
+  document.getElementById('stat-lotes').textContent = data.features.length;
+  document.getElementById('stat-hab').textContent = Math.round(totalHab).toLocaleString('es-EC');
+});
+
+// ---------- Red vial ----------
+loadGeoJSON('data/red_vial.geojson', data => {
+  const layer = L.geoJSON(data, {
+    style: f => {
+      const tipo = (f.properties.tipo_via || '').toLowerCase();
+      const principal = tipo.includes('princi');
+      return { color: '#4A4A44', weight: principal ? 4 : 2, opacity: 0.85 };
+    },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      l.bindPopup(popupCard('Vía', [
+        ['Nombre', p.nombre],
+        ['Tipo', p.tipo_via],
+        ['Ancho', p.ancho_m ? p.ancho_m + ' m' : null]
+      ]));
+    }
+  }).addTo(map);
+  layers.vial = layer;
+  document.getElementById('chk-vial').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+// ---------- Hidrografía ----------
+loadGeoJSON('data/hidrografia.geojson', data => {
+  const layer = L.geoJSON(data, {
+    style: { color: '#2E7DAF', weight: 4, dashArray: '2 4' },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      l.bindPopup(popupCard('Hidrografía', [
+        ['Nombre', p.nombre],
+        ['Cota', p.cota_msnm ? p.cota_msnm + ' msnm' : null]
+      ]));
+    }
+  }).addTo(map);
+  layers.hidro = layer;
+  document.getElementById('chk-hidro').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+// ---------- Equipamientos ----------
+loadGeoJSON('data/equipamientos.geojson', data => {
+  const layer = L.geoJSON(data, {
+    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+      radius: 7, color: '#fff', weight: 1.5, fillColor: '#8E44AD', fillOpacity: 0.95
+    }),
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      l.bindPopup(popupCard('Equipamiento', [
+        ['Nombre', p.nombre],
+        ['Tipo', p['tipo (educacion/salud)']],
+        ['Capacidad', p.capacidad]
+      ]));
+    }
+  }).addTo(map);
+  layers.equip = layer;
+  document.getElementById('chk-equip').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+// ---------- Áreas verdes ----------
+loadGeoJSON('data/areas_verdes.geojson', data => {
+  const layer = L.geoJSON(data, {
+    style: { color: '#2F5138', weight: 1, fillColor: '#3F6B4F', fillOpacity: 0.55 },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      l.bindPopup(popupCard('Área verde', [
+        ['Nombre', p.nombre],
+        ['Área', p.area_m2 ? fmtNum(p.area_m2) + ' m²' : null]
+      ]));
+    }
+  }).addTo(map);
+  layers.verde = layer;
+  document.getElementById('chk-verde').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+// ---------- Riesgo de inundación (off by default) ----------
+loadGeoJSON('data/lotes_riesgo_inundacion.geojson', data => {
+  const layer = L.geoJSON(data, {
+    style: { color: '#B23A16', weight: 1.5, fillColor: '#E4572E', fillOpacity: 0.5 },
+    onEachFeature: (f, l) => {
+      const p = f.properties;
+      l.bindPopup(popupCard('Lote en riesgo de inundación', [
+        ['Manzana', p.manzana],
+        ['Uso', p.uso],
+        ['Habitantes expuestos', p.n_habitantes]
+      ]));
+    }
+  });
+  layers.riesgo = layer;
+  document.getElementById('chk-riesgo').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+loadGeoJSON('data/buffer_inundacion.geojson', data => {
+  const layer = L.geoJSON(data, { style: { color: '#E4572E', weight: 1, fillColor: '#F3B9A4', fillOpacity: 0.35, dashArray: '4 3' } });
+  layers.bufInund = layer;
+  document.getElementById('chk-buf-inund').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+loadGeoJSON('data/buffer_salud_1000m.geojson', data => {
+  const layer = L.geoJSON(data, { style: { color: '#4E9C89', weight: 1, fillColor: '#9BD3C6', fillOpacity: 0.3 } });
+  layers.bufSalud = layer;
+  document.getElementById('chk-buf-salud').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+loadGeoJSON('data/buffer_educacion_500m.geojson', data => {
+  const layer = L.geoJSON(data, { style: { color: '#5C7CC7', weight: 1, fillColor: '#B7C9F2', fillOpacity: 0.3 } });
+  layers.bufEdu = layer;
+  document.getElementById('chk-buf-edu').addEventListener('change', e => toggleLayer(layer, e.target.checked));
+});
+
+function toggleLayer(layer, show) {
+  if (show) { layer.addTo(map); } else { map.removeLayer(layer); }
+}
+</script>
+</body>
+</html>
