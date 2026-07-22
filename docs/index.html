@@ -309,6 +309,21 @@
   }
   .dash-risk-grid .stat-card{margin-bottom:0;}
 
+  .dash-pie-wrap{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    margin:10px 0 14px;
+  }
+  .dash-pie{
+    width:120px;height:120px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .dash-pie-legend{font-size:0.78rem;color:var(--text-dim);}
+  .dash-pie-legend div{display:flex;align-items:center;gap:6px;margin:4px 0;}
+  .dash-pie-legend .sw{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+
   @media (max-width:720px){
     #dash-panel{width:100%;max-width:100%;}
   }
@@ -412,9 +427,6 @@ document.getElementById('base-osm').addEventListener('change', () => { map.remov
 document.getElementById('base-sat').addEventListener('change', () => { map.removeLayer(osm); map.addLayer(sat); });
 
 // ---------- Color scheme: uso de suelo (normalizado) ----------
-// Nota: los datos originales traen inconsistencias de captura (mayúsculas, tildes,
-// espacios). Se normalizan aquí para que la simbología no se fragmente; lo ideal
-// es corregir el campo "uso" en el GeoPackage de origen antes de la entrega final.
 function normUso(raw) {
   if (!raw) return 'sin_dato';
   const t = raw.trim().toLowerCase();
@@ -439,7 +451,6 @@ const USO_COLORS = {
   sin_dato:               { color:'#CFCABB', label:'Sin dato' }
 };
 
-// Build legend
 const legendDiv = document.getElementById('uso-suelo-legend');
 Object.values(USO_COLORS).forEach(v => {
   const row = document.createElement('div');
@@ -462,22 +473,29 @@ function fmtNum(n) {
   if (n === null || n === undefined) return null;
   return Math.round(n * 100) / 100;
 }
+// Extrae solo la parte numérica de un texto tipo "800 estudiantes" -> "800"
+function onlyNumber(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const m = String(val).match(/[\d.,]+/);
+  return m ? m[0] : String(val);
+}
 
 const layers = {}; // registry
 
 function loadGeoJSON(path, buildLayer) {
-  return fetch(path).then(r => r.json()).then(data => buildLayer(data));
+  return fetch(path)
+    .then(r => {
+      if (!r.ok) throw new Error(`No se pudo cargar ${path} (HTTP ${r.status})`);
+      return r.json();
+    })
+    .then(data => buildLayer(data))
+    .catch(err => console.error('[geovisualizador]', err.message));
 }
 
-// ---------- Selección de lotes (reemplaza el hover parpadeante por un resaltado al clic) ----------
-// Antes cada capa cambiaba su opacidad en cada mouseover, lo cual con miles de
-// parcelas pequeñas y superpuestas se sentía invasivo y bloqueaba el clic de la
-// capa de abajo. Ahora: un único lote queda "seleccionado" (borde naranja) al
-// hacer clic, sin efectos por simple paso del mouse, y funciona igual sin
-// importar qué tan pequeño sea el polígono.
+// ---------- Selección de lotes ----------
 let selected = null;
 function wireSelectable(l, onOpen) {
-  const base = Object.assign({}, l.options); // snapshot del estilo original
+  const base = Object.assign({}, l.options);
   l.on('click', (e) => {
     L.DomEvent.stopPropagation(e);
     if (selected && selected.layer !== l) selected.layer.setStyle(selected.base);
@@ -556,7 +574,7 @@ loadGeoJSON('data/equipamientos.geojson', data => {
       l.bindPopup(popupCard('Equipamiento', [
         ['Nombre', p.nombre],
         ['Tipo', p['tipo (educacion/salud)']],
-        ['Capacidad', p.capacidad]
+        ['Capacidad', onlyNumber(p.capacidad)]
       ]));
     }
   }).addTo(map);
@@ -611,9 +629,6 @@ function toggleLayer(layer, show) {
 }
 
 // ---------- Mapa topográfico IGM (raster de contexto) ----------
-// Bounds calculados a partir del world file (Machala.jgw): origen UTM 17S
-// reproyectado a WGS84. Es una aproximación rectangular (no una reproyección
-// pixel a pixel), suficiente para una capa de referencia visual.
 const topoBounds = [[-3.33701968559376, -80.00221669098502], [-3.169675651910969, -79.75213002042854]];
 const topoLayer = L.imageOverlay('img/machala_topo.jpg', topoBounds, { opacity: 0.85 });
 document.getElementById('chk-topo').addEventListener('change', e => toggleLayer(topoLayer, e.target.checked));
@@ -644,6 +659,7 @@ function fieldLabel(key) {
 
 function fmtValue(key, val) {
   if (val === null || val === undefined || val === '') return null;
+  if (key === 'capacidad') return onlyNumber(val);
   if (typeof val === 'number') {
     if (key === 'valor_m2') return '$' + val.toLocaleString('es-EC', {maximumFractionDigits: 2}) + ' / m²';
     if (key.includes('area') || key.includes('m2')) return val.toLocaleString('es-EC', {maximumFractionDigits: 1}) + ' m²';
@@ -656,7 +672,6 @@ function fmtValue(key, val) {
 function openFeatureDetail(layerLabel, feature) {
   const p = feature.properties;
 
-  // Área y perímetro: usar el campo si ya viene calculado, si no, calcularlo con turf
   let areaM2 = p.area_m2 ?? p.area ?? null;
   let perimM = null;
   try {
@@ -705,7 +720,7 @@ function bar(pct, colorOk, colorWarn, threshold) {
 function buildDashboard(p) {
   const educOk = p.educ_pct >= 80;
   const saludOk = p.salud_pct >= 80;
-  const verdeOk = p.area_verde_m2_hab >= 9; // estándar OMS
+  const verdeOk = p.area_verde_m2_hab >= 9;
 
   dashContent.innerHTML = `
     <p class="dash-eyebrow">Tablero de indicadores</p>
@@ -788,38 +803,17 @@ loadGeoJSON('data/parcelas.geojson', data => {
 // PANEL DE ANÁLISIS — los 3 cálculos STEAM, con datos reales del proyecto
 // ================================================================
 
-// Proyección inversa de la usada para publicar (WGS84 -> UTM 17S), para
-// mostrar los cálculos de distancia en las mismas unidades (metros, E/N)
-// con las que se trabaja en QGIS.
-function forwardUTM(lon, lat) {
-  const a = 6378137.0, f = 1/298.257223563;
-  const e2 = f*(2-f), k0 = 0.9996, FE = 500000, FN = 10000000;
-  const lon0 = -81 * Math.PI/180;
-  const phi = lat * Math.PI/180, lambda = lon * Math.PI/180;
-  const ep2 = e2/(1-e2);
-  const N = a / Math.sqrt(1 - e2*Math.sin(phi)**2);
-  const T = Math.tan(phi)**2, C = ep2*Math.cos(phi)**2;
-  const A = (lambda - lon0)*Math.cos(phi);
-  const M = a*(
-      (1 - e2/4 - 3*e2**2/64 - 5*e2**3/256)*phi
-    - (3*e2/8 + 3*e2**2/32 + 45*e2**3/1024)*Math.sin(2*phi)
-    + (15*e2**2/256 + 45*e2**3/1024)*Math.sin(4*phi)
-    - (35*e2**3/3072)*Math.sin(6*phi)
-  );
-  const E = FE + k0*N*(A + (1-T+C)*A**3/6 + (5-18*T+T**2+72*C-58*ep2)*A**5/120);
-  const Nn = FN + k0*(M + N*Math.tan(phi)*(A**2/2 + (5-T+9*C+4*C**2)*A**4/24 + (61-58*T+T**2+600*C-330*ep2)*A**6/720));
-  return { E, N: Nn };
-}
-
 const btnAnalisis = document.getElementById('btn-analisis');
 let ANALYSIS_DATA = null;
 
 Promise.all([
   fetch('data/lotes_urbanos.geojson').then(r => r.json()),
   fetch('data/areas_verdes.geojson').then(r => r.json()),
-  fetch('data/equipamientos.geojson').then(r => r.json())
-]).then(([lotes, verdes, equip]) => {
-  ANALYSIS_DATA = { lotes, verdes, equip };
+  fetch('data/equipamientos.geojson').then(r => r.json()),
+  fetch('data/buffer_inundacion.geojson').then(r => r.json()),
+  fetch('data/lotes_riesgo_inundacion.geojson').then(r => r.json())
+]).then(([lotes, verdes, equip, bufInund, riesgo]) => {
+  ANALYSIS_DATA = { lotes, verdes, equip, bufInund, riesgo };
 });
 
 btnAnalisis.addEventListener('click', () => {
@@ -831,9 +825,9 @@ btnAnalisis.addEventListener('click', () => {
   buildAnalysisPanel(ANALYSIS_DATA);
 });
 
-function buildAnalysisPanel({ lotes, verdes, equip }) {
+function buildAnalysisPanel({ lotes, verdes, equip, bufInund, riesgo }) {
 
-  // ---------- ① Área y % de ocupación del suelo (por categoría de uso) ----------
+  // ---------- ① Área y % de ocupación del suelo ----------
   const areaByUso = {};
   let totalAreaLotes = 0;
   lotes.features.forEach(f => {
@@ -855,34 +849,20 @@ function buildAnalysisPanel({ lotes, verdes, equip }) {
   const dominante = Object.entries(areaByUso).sort((a,b) => b[1]-a[1])[0];
   const verdeShare = ((areaByUso['area_verde']||0) / totalAreaLotes * 100);
 
-  // ---------- ② Accesibilidad a equipamientos (distancia euclidiana real) ----------
+  // ---------- ② Accesibilidad a equipamientos: lotes ocupados dentro del radio, educación y salud ----------
   const educPoint = equip.features.find(f => (f.properties['tipo (educacion/salud)']||'').toLowerCase().includes('educ'));
   const saludPoint = equip.features.find(f => (f.properties['tipo (educacion/salud)']||'').toLowerCase().includes('salud'));
-  const RADIO_EDUC_M = 500, RADIO_SALUD_M = 600;
+  const RADIO_EDUC_M = 500, RADIO_SALUD_M = 1000;
 
-  let peorManzana = null, peorDist = -1;
-  let servidasEduc = 0;
+  let servidasEduc = 0, servidasSalud = 0;
   lotes.features.forEach(f => {
     const c = turf.centroid(f);
-    const dEduc = educPoint ? turf.distance(c, educPoint, { units: 'meters' }) : null;
-    if (dEduc !== null && dEduc <= RADIO_EDUC_M) servidasEduc++;
-    if (dEduc !== null && dEduc > peorDist) { peorDist = dEduc; peorManzana = { f, c, dEduc }; }
+    if (educPoint && turf.distance(c, educPoint, { units: 'meters' }) <= RADIO_EDUC_M) servidasEduc++;
+    if (saludPoint && turf.distance(c, saludPoint, { units: 'meters' }) <= RADIO_SALUD_M) servidasSalud++;
   });
-  const pctEduc = (servidasEduc / lotes.features.length * 100);
-
-  let utmManzanaHtml = '', utmEscuelaHtml = '', deltaHtml = '', distHtml = '';
-  if (peorManzana && educPoint) {
-    const cCoord = peorManzana.c.geometry.coordinates;
-    const eCoord = educPoint.geometry.coordinates;
-    const utmM = forwardUTM(cCoord[0], cCoord[1]);
-    const utmE = forwardUTM(eCoord[0], eCoord[1]);
-    const dx = Math.abs(utmE.E - utmM.E);
-    const dy = Math.abs(utmE.N - utmM.N);
-    utmManzanaHtml = `E = ${utmM.E.toFixed(0)}  N = ${utmM.N.toFixed(0)}`;
-    utmEscuelaHtml = `E = ${utmE.E.toFixed(0)}  N = ${utmE.N.toFixed(0)}`;
-    deltaHtml = `Δx = ${dx.toFixed(0)} m &nbsp; Δy = ${dy.toFixed(0)} m`;
-    distHtml = `d = √(${dx.toFixed(0)}² + ${dy.toFixed(0)}²) ≈ ${peorManzana.dEduc.toFixed(0)} m`;
-  }
+  const totalLotes = lotes.features.length;
+  const pctEduc = (servidasEduc / totalLotes * 100);
+  const pctSalud = (servidasSalud / totalLotes * 100);
 
   // ---------- ③ Población servida por áreas verdes ----------
   const poblacionTotal = lotes.features.reduce((s, f) => s + (Number(f.properties.n_habitantes) || 0), 0);
@@ -892,14 +872,23 @@ function buildAnalysisPanel({ lotes, verdes, equip }) {
   const requerido = OMS * poblacionTotal;
   const deficit = Math.max(0, requerido - areaVerdeTotal);
   const deficitHa = deficit / 10000;
-  const costoPeriferia = deficit * 25;
-  const costoCentro = deficit * 80;
   const cumpleOMS = m2PorHab >= OMS;
+  const pctCumplido = Math.min(100, (areaVerdeTotal / requerido) * 100);
+
+  // pie chart (CSS conic-gradient, sin librerías): % cubierto vs % en déficit del estándar OMS
+  const pieDeg = (pctCumplido / 100) * 360;
+  const pieStyle = `background: conic-gradient(var(--mangle) 0deg ${pieDeg}deg, var(--coral-soft) ${pieDeg}deg 360deg);`;
+
+  // ---------- ④ Hidrología / riesgo de inundación (datos reales de las capas) ----------
+  const zonaRiesgoM2 = bufInund.features.reduce((s, f) => s + turf.area(f), 0);
+  const zonaRiesgoHa = zonaRiesgoM2 / 10000;
+  const lotesInundM2 = riesgo.features.reduce((s, f) => s + turf.area(f), 0);
+  const personasRiesgo = riesgo.features.reduce((s, f) => s + (Number(f.properties.n_habitantes) || 0), 0);
 
   dashContent.innerHTML = `
     <p class="dash-eyebrow">Panel de análisis STEAM</p>
     <h2 class="dash-title">Machala — indicadores generales</h2>
-    <p class="dash-sub">Calculado en tiempo real a partir de las capas publicadas (${lotes.features.length} lotes urbanos)</p>
+    <p class="dash-sub">Calculado en tiempo real a partir de las capas publicadas (${totalLotes} lotes urbanos)</p>
 
     <div class="dash-section">
       <div class="dash-section-head"><div class="dash-badge">1</div><div class="dash-section-title">Área y % de ocupación del suelo</div></div>
@@ -908,48 +897,63 @@ function buildAnalysisPanel({ lotes, verdes, equip }) {
         <tbody>${usoRows}</tbody>
       </table>
       <p class="dash-note">El uso <b>${USO_COLORS[dominante[0]].label}</b> domina el sector mapeado (${(dominante[1]/totalAreaLotes*100).toFixed(1)}%); las áreas verdes apenas alcanzan <b>${verdeShare.toFixed(1)}%</b>.
-      <br><i>Nota: esta tabla usa solo lotes urbanos (polígonos); la red vial se registró como líneas, sin área asociada — para incluirla en este cálculo habría que digitizarla como polígono o aplicarle un buffer de ancho de vía.</i></p>
+      <br><i>Nota: esta tabla usa solo lotes urbanos (polígonos); la red vial se registró como líneas, sin área asociada.</i></p>
     </div>
 
     <div class="dash-section">
       <div class="dash-section-head"><div class="dash-badge">2</div><div class="dash-section-title">Accesibilidad a equipamientos</div></div>
-      <div class="dash-row"><span>Manzanas servidas por educación (radio ${RADIO_EDUC_M} m)</span><b>${pctEduc.toFixed(1)}%</b></div>
+
+      <div class="dash-row"><span>Educación — radio de ${RADIO_EDUC_M} m</span></div>
+      <div class="dash-row"><span>Lotes ocupados dentro de los ${RADIO_EDUC_M} m</span><b>${servidasEduc} de ${totalLotes}</b></div>
       ${bar(pctEduc, '#3F6B4F', '#E4572E', 80)}
-      <p class="dash-note" style="margin-top:12px;">Ejemplo de cálculo — manzana más alejada de una unidad educativa:</p>
-      <div style="background:var(--sand);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;line-height:1.7;color:var(--ink-soft);">
-        Manzana ${peorManzana ? (peorManzana.f.properties.manzana||'') : ''} &nbsp;→&nbsp; ${utmManzanaHtml}<br>
-        Unidad educativa &nbsp;→&nbsp; ${utmEscuelaHtml}<br>
-        ${deltaHtml}<br>
-        ${distHtml}
-      </div>
-      <p class="dash-note">${peorManzana && peorManzana.dEduc > RADIO_EDUC_M
-        ? `${peorManzana.dEduc.toFixed(0)} m > ${RADIO_EDUC_M} m → manzana <b>sub-servida</b>. Candidata a nueva unidad educativa o ruta de transporte.`
-        : `Toda la superficie mapeada queda dentro del radio de ${RADIO_EDUC_M} m.`}</p>
+      <div class="dash-row"><span>% de cobertura</span><b>${pctEduc.toFixed(1)}%</b></div>
+
+      <div class="dash-row" style="margin-top:16px;"><span>Salud — radio de ${RADIO_SALUD_M} m</span></div>
+      <div class="dash-row"><span>Lotes ocupados dentro de los ${RADIO_SALUD_M} m</span><b>${servidasSalud} de ${totalLotes}</b></div>
+      ${bar(pctSalud, '#3F6B4F', '#E4572E', 80)}
+      <div class="dash-row"><span>% de cobertura</span><b>${pctSalud.toFixed(1)}%</b></div>
+
+      <p class="dash-note" style="margin-top:10px;">${pctEduc < 80 || pctSalud < 80
+        ? `Uno o ambos servicios quedan por debajo del 80% de cobertura recomendada — hay lotes que exceden el radio caminable y son candidatos a una nueva unidad educativa, un nuevo puesto de salud, o una ruta de transporte que acorte la distancia real.`
+        : `Ambos servicios cubren de forma adecuada la superficie mapeada.`}</p>
     </div>
 
     <div class="dash-section">
       <div class="dash-section-head"><div class="dash-badge">3</div><div class="dash-section-title">Población servida por áreas verdes</div></div>
+
+      <div class="dash-pie-wrap">
+        <div class="dash-pie" style="${pieStyle}"></div>
+        <div class="dash-pie-legend">
+          <div><span class="sw" style="background:var(--mangle)"></span>Área verde disponible frente al estándar OMS (${pctCumplido.toFixed(0)}%)</div>
+          <div><span class="sw" style="background:var(--coral-soft)"></span>Déficit de área verde (${(100-pctCumplido).toFixed(0)}%)</div>
+        </div>
+      </div>
+
       <div class="dash-metric-big">
         <span class="val">${m2PorHab.toFixed(1)}</span><span class="unit">m² / habitante</span>
-        <span class="dash-flag ${cumpleOMS ? 'ok' : 'warn'}">${cumpleOMS ? 'cumple OMS' : 'bajo el mínimo OMS'}</span>
+        <span class="dash-flag ${cumpleOMS ? 'ok' : 'warn'}">${cumpleOMS ? 'cumple OMS' : 'Déficit de área verde'}</span>
       </div>
-      <div class="dash-row"><span>Población total (dato real, suma de n_habitantes)</span><b>${poblacionTotal.toLocaleString('es-EC')} hab</b></div>
-      <div class="dash-row"><span>Área verde disponible</span><b>${areaVerdeTotal.toLocaleString('es-EC',{maximumFractionDigits:0})} m²</b></div>
-      <div class="dash-row"><span>Déficit frente a OMS (9 m²/hab)</span><b>${deficit.toLocaleString('es-EC',{maximumFractionDigits:0})} m² (${deficitHa.toFixed(2)} ha)</b></div>
-      ${deficit > 0 ? `
-      <div class="dash-row" style="margin-top:8px;"><span>Costo de recuperar ese déficit en periferia ($25/m²)</span><b>$${costoPeriferia.toLocaleString('es-EC',{maximumFractionDigits:0})}</b></div>
-      <div class="dash-row"><span>Costo de recuperarlo en suelo central ($80/m²)</span><b>$${costoCentro.toLocaleString('es-EC',{maximumFractionDigits:0})}</b></div>
-      <p class="dash-note">La ubicación importa tanto como la cantidad: el mismo déficit cuesta ${(costoCentro/costoPeriferia).toFixed(1)}× más si se resuelve en suelo central que en la periferia.</p>
-      ` : `<p class="dash-note">El sector cumple el estándar OMS de área verde por habitante.</p>`}
-      <p class="dash-note" style="margin-top:10px;"><i>Fuente de precios: Ordenanza Municipal de Valoración de la Propiedad 2024. Población tomada de los atributos reales de <code>lotes_urbanos</code>, no estimada — a diferencia del método de la guía (lotes promedio × personas/hogar), que puede usarse como validación cruzada si se desea.</i></p>
+
+      <p class="dash-note" style="line-height:1.7;">
+        ${cumpleOMS
+          ? `El sector cuenta con ${poblacionTotal.toLocaleString('es-EC')} habitantes y ${areaVerdeTotal.toLocaleString('es-EC',{maximumFractionDigits:0})} m² de área verde, lo que arroja ${m2PorHab.toFixed(1)} m² por habitante — por encima del mínimo de 9 m²/hab recomendado por la Organización Mundial de la Salud. Esto sugiere una relación equilibrada entre la densidad poblacional actual y la oferta de espacio público verde, una condición que conviene proteger a medida que el sector siga densificándose.`
+          : `El sector concentra ${poblacionTotal.toLocaleString('es-EC')} habitantes frente a apenas ${areaVerdeTotal.toLocaleString('es-EC',{maximumFractionDigits:0})} m² de área verde disponible, es decir, ${m2PorHab.toFixed(1)} m² por habitante — muy por debajo del mínimo de 9 m²/hab recomendado por la Organización Mundial de la Salud. Esta brecha (un déficit de ${deficit.toLocaleString('es-EC',{maximumFractionDigits:0})} m², equivalentes a ${deficitHa.toFixed(2)} ha) es un patrón típico de ciudades costeras de crecimiento acelerado como Machala: el suelo disponible se ocupa primero con vivienda y comercio, y la habilitación de parques y áreas recreativas queda relegada a una etapa posterior de la planificación urbana, cuando el espacio libre ya es escaso y más costoso de adquirir. Revertir este déficit implica priorizar la adquisición o habilitación de suelo público en los lotes vacantes identificados en el sector, antes de que se consoliden con otros usos.`}
+      </p>
+    </div>
+
+    <div class="dash-section">
+      <div class="dash-section-head"><div class="dash-badge">4</div><div class="dash-section-title">Hidrología y riesgo de inundación</div></div>
+      <div class="dash-risk-grid">
+        <div class="stat-card"><div class="num" style="color:var(--coral)">${zonaRiesgoM2.toLocaleString('es-EC',{maximumFractionDigits:0})}</div><div class="lbl">Zona de riesgo (m²)</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--coral)">${zonaRiesgoHa.toFixed(2)}</div><div class="lbl">Zona de riesgo (ha aprox.)</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--coral)">${lotesInundM2.toLocaleString('es-EC',{maximumFractionDigits:0})}</div><div class="lbl">Lotes en zona de inundación (m²)</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--coral)">${personasRiesgo.toLocaleString('es-EC')}</div><div class="lbl">Personas en riesgo</div></div>
+      </div>
+      <p class="dash-note" style="margin-top:10px;">Debido a que estos lotes se asientan sobre una cota topográfica crítica, cercana al nivel de crecida del estero, quedan expuestos directamente a eventos de inundación estacional; esto convierte al área en zona prioritaria para obras de drenaje o restricciones de uso de suelo.</p>
     </div>
   `;
   dashPanel.classList.add('open');
 }
-
-
-
-
 </script>
 </body>
 </html>
