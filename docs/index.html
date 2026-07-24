@@ -589,8 +589,8 @@
     <h2>Riesgo y cobertura</h2>
     <div class="layer-item"><input type="checkbox" id="chk-riesgo"><span class="swatch" style="background:#ff2a00"></span>Lotes en riesgo de inundación</div>
     <div class="layer-item"><input type="checkbox" id="chk-buf-inund"><span class="swatch" style="background:#f94e1f"></span>Buffer zona inundable</div>
-    <div class="layer-item"><input type="checkbox" id="chk-buf-salud"><span class="swatch" style="background:#00e061"></span>Buffer salud (1000 m)</div>
-    <div class="layer-item"><input type="checkbox" id="chk-buf-edu"><span class="swatch" style="background:#0853e9"></span>Buffer educación (500 m)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-salud"><span class="swatch" style="background:#00BFFF"></span>Buffer salud (1000 m)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-edu"><span class="swatch" style="background:#FFD700"></span>Buffer educación (500 m)</div>
 
     <h2>Tablero por sector</h2>
     <div class="layer-item"><input type="checkbox" id="chk-sectores" checked><span class="swatch" style="background:#3D3F82;opacity:0.35"></span>Sectores (clic para indicadores)</div>
@@ -656,13 +656,13 @@ function normUso(raw) {
 }
 
 const USO_COLORS = {
-  residencial:            { color:'#FFD700', label:'Residencial' },
-  comercial:              { color:'#DC143C', label:'Comercial' },
-  salud:                  { color:'#8A2BE2', label:'Centro de salud' },
+  residencial:            { color:'#FFCB61', label:'Residencial' },
+  comercial:              { color:'#A52A2A', label:'Comercial' },
+  salud:                  { color:'#FF4500', label:'Centro de salud' },
   educacion:              { color:'#6495ED', label:'Educación' },
   area_verde:             { color:'#008000', label:'Área verde' },
-  servicio_comunitario:   { color:'#FF4500', label:'Servicio comunitario' },
-  lote_baldio:            { color:'#B8B6AC', label:'Lote baldío' },
+  servicio_comunitario:   { color:'#9932CC', label:'Servicio comunitario' },
+  lote_baldio:            { color:'#808000', label:'Lote baldío' },
   // "hidden: true" oculta esta clase de la leyenda y de la tabla/gráfica de uso de suelo,
   // pero la clave se mantiene para que el mapa siga pintando estos lotes y los
   // totales (Lotes mapeados / Habitantes estimados) sigan contando TODOS los lotes.
@@ -835,13 +835,13 @@ loadGeoJSON('data/buffer_inundacion.geojson', data => {
 });
 
 loadGeoJSON('data/buffer_salud_1000m.geojson', data => {
-  const layer = L.geoJSON(data, { style: { color: '#3FBFA0', weight: 1, fillColor: '#7FD9C4', fillOpacity: 0.32 } });
+  const layer = L.geoJSON(data, { style: { color: '#00BFFF', weight: 1, fillColor: '#00BFFF', fillOpacity: 0.32 } });
   layers.bufSalud = layer;
   document.getElementById('chk-buf-salud').addEventListener('change', e => toggleLayer(layer, e.target.checked));
 });
 
 loadGeoJSON('data/buffer_educacion_500m.geojson', data => {
-  const layer = L.geoJSON(data, { style: { color: '#6E8FE0', weight: 1, fillColor: '#A8C0F0', fillOpacity: 0.32 } });
+  const layer = L.geoJSON(data, { style: { color: '#6E8FE0', weight: 1, fillColor: '#FFD700', fillOpacity: 0.32 } });
   layers.bufEdu = layer;
   document.getElementById('chk-buf-edu').addEventListener('change', e => toggleLayer(layer, e.target.checked));
 });
