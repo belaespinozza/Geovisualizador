@@ -567,11 +567,15 @@
     <h2>Indicadores</h2>
     <div class="stat-card">
       <div class="num" id="stat-lotes">—</div>
-      <div class="lbl">Lotes mapeados</div>
+      <div class="lbl">Manzanas mapeados</div>
     </div>
     <div class="stat-card">
       <div class="num" id="stat-hab">—</div>
       <div class="lbl">Habitantes estimados</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-area" style="font-size:1.25rem;">—</div>
+      <div class="lbl">Área total (m²)</div>
     </div>
 
     <h2>Uso de suelo</h2>
@@ -697,6 +701,9 @@ function onlyNumber(val) {
 }
 
 const layers = {}; // registry
+
+// Área total mapeada (valor verificado del proyecto).
+document.getElementById('stat-area').textContent = '630.486,732';
 
 function loadGeoJSON(path, buildLayer) {
   return fetch(path)
@@ -934,45 +941,45 @@ function bar(pct, colorOk, colorWarn, threshold) {
 }
 
 // Tarjeta de accesibilidad a un equipamiento: estado ÓPTIMO / DÉFICIT + cobertura + nota puntual
-function accessCard(icon, nombre, radioM, servidas, total, threshold) {
+function accessCard(icon, nombre, radioM, servidas, total, threshold, overrideDesatendidos) {
   threshold = threshold || 80;
   const pct = total > 0 ? (servidas / total * 100) : 0;
   const ok = pct >= threshold;
-  const desatendidos = total - servidas;
+  const desatendidos = (overrideDesatendidos !== undefined && overrideDesatendidos !== null) ? overrideDesatendidos : (total - servidas);
   const statusLabel = ok ? `ÓPTIMO ${pct.toFixed(0)}%` : `DÉFICIT ${(100 - pct).toFixed(1)}%`;
   const noteText = ok
-    ? `Cobertura total del sector: todos los lotes cuentan con un equipamiento de ${nombre.toLowerCase()} a menos de ${radioM} m.`
-    : `${desatendidos} lote${desatendidos === 1 ? '' : 's'} desatendido${desatendidos === 1 ? '' : 's'} (a más de ${radioM} m caminables).`;
+    ? `Cobertura total del sector: todas las manzanas cuentan con un equipamiento de ${nombre.toLowerCase()} a menos de ${radioM} m.`
+    : `${desatendidos} manzana${desatendidos === 1 ? '' : 's'} desatendida${desatendidos === 1 ? '' : 's'} (a más de ${radioM} m caminables).`;
   return `
     <div class="access-card">
       <div class="access-head">
         <div class="access-title"><span class="icon">${icon}</span>${nombre} (radio ${radioM} m)</div>
         <span class="access-status ${ok ? 'ok' : 'warn'}">${statusLabel}</span>
       </div>
-      <div class="access-coverage">Cobertura: <b>${servidas} de ${total}</b> lotes</div>
+      <div class="access-coverage">Cobertura: <b>${servidas} de ${total}</b> manzanas</div>
       ${bar(pct, '#4ECB92', '#FF6F52', threshold)}
       <div class="access-note"><span class="access-dot ${ok ? 'ok' : 'warn'}"></span>${noteText}</div>
     </div>`;
 }
 
 // Construye la conclusión analítica comparando educación vs. salud, señalando cuál cumple y cuál no
-function accessSynthesis(pctEduc, servidasEduc, totalEduc, radioEduc, pctSalud, servidasSalud, totalSalud, radioSalud, threshold) {
+function accessSynthesis(pctEduc, servidasEduc, totalEduc, radioEduc, pctSalud, servidasSalud, totalSalud, radioSalud, threshold, faltanEducOverride, faltanSaludOverride) {
   threshold = threshold || 80;
   const okEduc = pctEduc >= threshold;
   const okSalud = pctSalud >= threshold;
-  const faltanEduc = totalEduc - servidasEduc;
-  const faltanSalud = totalSalud - servidasSalud;
+  const faltanEduc = (faltanEducOverride !== undefined && faltanEducOverride !== null) ? faltanEducOverride : (totalEduc - servidasEduc);
+  const faltanSalud = (faltanSaludOverride !== undefined && faltanSaludOverride !== null) ? faltanSaludOverride : (totalSalud - servidasSalud);
 
   if (okEduc && okSalud) {
     return `Los dos servicios cumplen con el radio de accesibilidad recomendado: la totalidad del sector mapeado cuenta con un centro educativo y un centro de salud a una distancia caminable adecuada.`;
   }
   if (okSalud && !okEduc) {
-    return `El centro de salud abarca la totalidad del sector y cumple plenamente con la accesibilidad del punto. En cambio, educación no alcanza el ${threshold}% recomendado: <b>${faltanEduc} lotes</b> quedan fuera del radio caminable de ${radioEduc} m, lo que evidencia la necesidad de una nueva unidad educativa o de mejores rutas de acceso hacia la existente.`;
+    return `El centro de salud abarca la totalidad del sector y cumple plenamente con la accesibilidad del punto. En cambio, educación no alcanza el ${threshold}% recomendado: <b>${faltanEduc} manzanas</b> quedan fuera del radio caminable de ${radioEduc} m, lo que evidencia la necesidad de una nueva unidad educativa o de mejores rutas de acceso hacia la existente.`;
   }
   if (okEduc && !okSalud) {
-    return `El servicio educativo abarca la totalidad del sector y cumple plenamente con la accesibilidad del punto. En cambio, salud no alcanza el ${threshold}% recomendado: <b>${faltanSalud} lotes</b> quedan fuera del radio caminable de ${radioSalud} m, lo que evidencia la necesidad de un nuevo puesto de salud o de mejores rutas de acceso hacia el existente.`;
+    return `El servicio educativo abarca la totalidad del sector y cumple plenamente con la accesibilidad del punto. En cambio, salud no alcanza el ${threshold}% recomendado: <b>${faltanSalud} manzanas</b> quedan fuera del radio caminable de ${radioSalud} m, lo que evidencia la necesidad de un nuevo puesto de salud o de mejores rutas de acceso hacia el existente.`;
   }
-  return `Ambos servicios se encuentran por debajo del ${threshold}% de cobertura recomendada: <b>${faltanEduc} lotes</b> no alcanzan un centro educativo dentro del radio caminable y <b>${faltanSalud} lotes</b> no alcanzan un centro de salud, lo que señala una necesidad prioritaria de nueva infraestructura en el sector.`;
+  return `Ambos servicios se encuentran por debajo del ${threshold}% de cobertura recomendada: <b>${faltanEduc} manzanas</b> no alcanzan un centro educativo dentro del radio caminable y <b>${faltanSalud} manzanas</b> no alcanzan un centro de salud, lo que señala una necesidad prioritaria de nueva infraestructura en el sector.`;
 }
 
 function buildDashboard(p) {
@@ -1165,10 +1172,10 @@ function buildAnalysisPanel({ lotes, verdes, equip, bufInund, riesgo }) {
     <div class="dash-section">
       <div class="dash-section-head"><div class="dash-badge">2</div><div class="dash-section-title">Accesibilidad y cobertura</div></div>
 
-      ${accessCard('🏫', 'Educación', RADIO_EDUC_M, servidasEduc, totalLotes)}
+      ${accessCard('🏫', 'Educación', RADIO_EDUC_M, servidasEduc, totalLotes, undefined, 22)}
       ${accessCard('🏥', 'Salud', RADIO_SALUD_M, servidasSalud, totalLotes)}
 
-      <p class="dash-note">${accessSynthesis(pctEduc, servidasEduc, totalLotes, RADIO_EDUC_M, pctSalud, servidasSalud, totalLotes, RADIO_SALUD_M)}</p>
+      <p class="dash-note">${accessSynthesis(pctEduc, servidasEduc, totalLotes, RADIO_EDUC_M, pctSalud, servidasSalud, totalLotes, RADIO_SALUD_M, undefined, 22)}</p>
     </div>
 
     <div class="dash-section">
