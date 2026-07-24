@@ -581,16 +581,16 @@
     <div id="uso-suelo-legend"></div>
 
     <h2>Infraestructura</h2>
-    <div class="layer-item"><input type="checkbox" id="chk-vial" checked><span class="swatch line" style="background:#9B9890"></span>Red vial</div>
-    <div class="layer-item"><input type="checkbox" id="chk-hidro" checked><span class="swatch line" style="background:#4FA8DE"></span>Hidrografía (esteros)</div>
-    <div class="layer-item"><input type="checkbox" id="chk-equip" checked><span class="swatch" style="background:#B98FE0;border-radius:50%"></span>Equipamientos</div>
-    <div class="layer-item"><input type="checkbox" id="chk-verde" checked><span class="swatch" style="background:#4ECB92"></span>Áreas verdes</div>
+    <div class="layer-item"><input type="checkbox" id="chk-vial" checked><span class="swatch line" style="background:#a2987d"></span>Red vial</div>
+    <div class="layer-item"><input type="checkbox" id="chk-hidro" checked><span class="swatch line" style="background:#349bdb"></span>Hidrografía (esteros)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-equip" checked><span class="swatch" style="background:#ad76e0;border-radius:50%"></span>Equipamientos</div>
+    <div class="layer-item"><input type="checkbox" id="chk-verde" checked><span class="swatch" style="background:#36c887"></span>Áreas verdes</div>
 
     <h2>Riesgo y cobertura</h2>
-    <div class="layer-item"><input type="checkbox" id="chk-riesgo"><span class="swatch" style="background:#FF6F52"></span>Lotes en riesgo de inundación</div>
-    <div class="layer-item"><input type="checkbox" id="chk-buf-inund"><span class="swatch" style="background:#FFC9BA"></span>Buffer zona inundable</div>
-    <div class="layer-item"><input type="checkbox" id="chk-buf-salud"><span class="swatch" style="background:#7FD9C4"></span>Buffer salud (1000 m)</div>
-    <div class="layer-item"><input type="checkbox" id="chk-buf-edu"><span class="swatch" style="background:#A8C0F0"></span>Buffer educación (500 m)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-riesgo"><span class="swatch" style="background:#d54325"></span>Lotes en riesgo de inundación</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-inund"><span class="swatch" style="background:#ffa991"></span>Buffer zona inundable</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-salud"><span class="swatch" style="background:#58dabc"></span>Buffer salud (1000 m)</div>
+    <div class="layer-item"><input type="checkbox" id="chk-buf-edu"><span class="swatch" style="background:#7da3ef"></span>Buffer educación (500 m)</div>
 
     <h2>Tablero por sector</h2>
     <div class="layer-item"><input type="checkbox" id="chk-sectores" checked><span class="swatch" style="background:#3D3F82;opacity:0.35"></span>Sectores (clic para indicadores)</div>
@@ -656,12 +656,12 @@ function normUso(raw) {
 }
 
 const USO_COLORS = {
-  residencial:            { color:'#FFCB61', label:'Residencial' },
-  comercial:              { color:'#FF8A73', label:'Comercial' },
-  salud:                  { color:'#B98FE0', label:'Centro de salud' },
-  educacion:              { color:'#5FA8E0', label:'Educación' },
-  area_verde:             { color:'#4ECB92', label:'Área verde' },
-  servicio_comunitario:   { color:'#FFD966', label:'Servicio comunitario' },
+  residencial:            { color:'#FFD700', label:'Residencial' },
+  comercial:              { color:'#DC143C', label:'Comercial' },
+  salud:                  { color:'#8A2BE2', label:'Centro de salud' },
+  educacion:              { color:'#6495ED', label:'Educación' },
+  area_verde:             { color:'#008000', label:'Área verde' },
+  servicio_comunitario:   { color:'#B8860B', label:'Servicio comunitario' },
   lote_baldio:            { color:'#B8B6AC', label:'Lote baldío' },
   // "hidden: true" oculta esta clase de la leyenda y de la tabla/gráfica de uso de suelo,
   // pero la clave se mantiene para que el mapa siga pintando estos lotes y los
